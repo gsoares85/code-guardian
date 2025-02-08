@@ -1,17 +1,19 @@
 /*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
+Copyright © 2025 Guilherme Soares <GUILHERMELUZSOARES@GMAIL.COM>
 */
 package cmd
 
 import (
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/gsoares85/code-guardian/internal/github"
+	"github.com/google/go-github/v49/github"
+	"github.com/gsoares85/code-guardian/internal/github_internal"
 	"github.com/gsoares85/code-guardian/internal/openai"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // prReviewCmd represents the prReview command
@@ -21,57 +23,75 @@ var prReviewCmd = &cobra.Command{
 	Long:  `Use this command to perform a complete code review of a pull request.`,
 	Args:  cobra.ExactArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		owner := args[0]
-		repo := args[1]
+		owner, repo := args[0], args[1]
 		prNumber, err := strconv.Atoi(args[2])
 		if err != nil {
 			color.Red("Error: Invalid PR number")
 			return
 		}
-
 		saveOutput, _ := cmd.Flags().GetBool("output")
 
-		pr, err := github.GetPullRequest(owner, repo, prNumber)
-		if err != nil {
-			color.Red("Error getting PR: %s\n", err)
-			return
-		}
-
-		color.Cyan("PR %d - %s\n", prNumber, pr.GetTitle())
-		color.Green("Author: %s\n", pr.GetUser().GetLogin())
-		color.Yellow("Created at: %s\n", pr.GetCreatedAt())
-		color.Blue("Link: %s\n", pr.GetHTMLURL())
-
-		files, err := github.GetPullRequestFiles(owner, repo, prNumber)
-		if err != nil {
-			color.Red("Error getting PR files: %s\n", err)
-			return
-		}
-
-		color.Magenta("Files changed: %d\n", len(files))
-		for _, file := range files {
-			fmt.Println("  -", file)
-		}
-
-		prDiff, err := github.GetPullRequestDiff(owner, repo, prNumber)
-		if err != nil {
-			color.Red("Error getting PR diff: %s\n", err)
-			return
-		}
-
-		color.Magenta("Code changes")
-		fmt.Println(len(prDiff))
-
-		color.Blue("Sending for AI analysis")
-		aiFeedback, err := openai.AnalyzePRWithAI(prDiff)
+		// Fetch PR Data
+		pr, files, prDiff, aiFeedback, err := analyzePullRequest(owner, repo, prNumber)
 		if err != nil {
 			color.Red("Error analyzing PR: %s\n", err)
 			return
 		}
-		color.Green("AI feedback:")
-		fmt.Println(aiFeedback)
 
-		outputContent := fmt.Sprintf(`# Pull Request analysis report
+		// Display results
+		displayAnalysis(pr, files, prDiff, aiFeedback)
+
+		// Save to file if `--output` flag is enabled
+		if saveOutput {
+			saveReport(pr, repo, owner, prNumber, files, prDiff, aiFeedback)
+		}
+	},
+}
+
+func analyzePullRequest(owner, repo string, prNumber int) (*github.PullRequest, []string, string, string, error) {
+	pr, err := github_internal.GetPullRequest(owner, repo, prNumber)
+	if err != nil {
+		return nil, nil, "", "", fmt.Errorf("error fetching PR: %w", err)
+	}
+
+	files, err := github_internal.GetPullRequestFiles(owner, repo, prNumber)
+	if err != nil {
+		return nil, nil, "", "", fmt.Errorf("error fetching PR files: %w", err)
+	}
+
+	prDiff, err := github_internal.GetPullRequestDiff(owner, repo, prNumber)
+	if err != nil {
+		return nil, nil, "", "", fmt.Errorf("error fetching PR diff: %w", err)
+	}
+
+	color.Blue("Analyzing PR...")
+	aiFeedback, err := openai.AnalyzePRWithAI(prDiff)
+	if err != nil {
+		return nil, nil, "", "", fmt.Errorf("error analyzing PR with AI: %w", err)
+	}
+
+	return pr, files, prDiff, aiFeedback, nil
+}
+
+func displayAnalysis(pr *github.PullRequest, files []string, prDiff string, aiFeedback string) {
+	color.Cyan("\n🔍 PR %d - %s\n", pr.GetNumber(), pr.GetTitle())
+	color.Green("👤 Author: %s\n", pr.GetUser().GetLogin())
+	color.Yellow("📅 Created at: %s\n", pr.GetCreatedAt())
+	color.Blue("🔗 PR Link: %s\n", pr.GetHTMLURL())
+
+	color.Magenta("\n📂 Files changed (%d):\n", len(files))
+	for _, file := range files {
+		fmt.Println("  -", file)
+	}
+
+	color.Magenta("\n📌 Code changes (%d characters):\n", len(prDiff))
+	color.Green("\n📢 AI Feedback:\n")
+	fmt.Println(aiFeedback)
+}
+
+func generateMarkdownReport(pr *github.PullRequest, files []string, prDiff string, aiFeedback string) string {
+	return fmt.Sprintf(`# Pull Request Analysis Report
+
 ## PR %d - %s
 - **Author:** %s
 - **Created at:** %s
@@ -82,27 +102,32 @@ var prReviewCmd = &cobra.Command{
 
 ## 🔍 Code changes:
 '''diff
-%s
+	%s
 '''
+
 ## 🤖 AI Suggestions:
 %s
-		`, prNumber, pr.GetTitle(), pr.GetUser().GetLogin(), pr.GetCreatedAt(), pr.GetHTMLURL(), pr.GetHTMLURL(),
-			formatFileList(files),
-			prDiff,
-			aiFeedback)
-		if saveOutput {
-			timestamp := pr.GetCreatedAt().Format("20060102-150405")
-			outputFile := fmt.Sprintf("%s-%s_%s_%d.md", timestamp, repo, owner, prNumber)
-			outputPath := filepath.Join("reports", "pr", outputFile)
+`,
+		pr.GetNumber(), pr.GetTitle(), pr.GetUser().GetLogin(), pr.GetCreatedAt(),
+		pr.GetHTMLURL(), pr.GetHTMLURL(),
+		formatFileList(files),
+		prDiff,
+		aiFeedback,
+	)
+}
 
-			err := saveAnalysisToFile(outputPath, outputContent)
-			if err != nil {
-				color.Red("Error saving analysis to file: %s\n", err)
-				return
-			}
-			color.Green("Analysis saved to file: %s\n", outputPath)
-		}
-	},
+func saveReport(pr *github.PullRequest, repo, owner string, prNumber int, files []string, prDiff string, aiFeedback string) {
+	timestamp := time.Now().Format("20060102-150405")
+	outputFile := fmt.Sprintf("%s-%s_%s_%d.md", timestamp, repo, owner, prNumber)
+	outputPath := filepath.Join("reports", "pr", outputFile)
+
+	content := generateMarkdownReport(pr, files, prDiff, aiFeedback)
+
+	if err := saveAnalysisToFile(outputPath, content); err != nil {
+		color.Red("❌ ERROR saving analysis: %s\n", err)
+		return
+	}
+	color.Green("✅ Analysis saved to file: %s\n", outputPath)
 }
 
 func formatFileList(files []string) string {
@@ -113,12 +138,12 @@ func formatFileList(files []string) string {
 	return formated
 }
 
-func saveAnalysisToFile(fineName, content string) error {
-	dir := filepath.Dir(fineName)
+func saveAnalysisToFile(fileName, content string) error {
+	dir := filepath.Dir(fileName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
-	file, err := os.Create(fineName)
+	file, err := os.Create(fileName)
 	if err != nil {
 		return err
 	}

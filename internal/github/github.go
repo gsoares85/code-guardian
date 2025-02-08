@@ -44,3 +44,16 @@ func GetPullRequestDiff(owner string, repo string, prNumber int) (string, error)
 	}
 	return diff, nil
 }
+
+func GetPullRequestFiles(owner string, repo string, prNumber int) ([]string, error) {
+	client := NewGithubClient()
+	files, _, err := client.PullRequests.ListFiles(context.Background(), owner, repo, prNumber, nil)
+	if err != nil {
+		return nil, err
+	}
+	var fileNames []string
+	for _, file := range files {
+		fileNames = append(fileNames, file.GetFilename())
+	}
+	return fileNames, nil
+}

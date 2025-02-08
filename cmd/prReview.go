@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/gsoares85/code-guardian/internal/github"
 	"github.com/gsoares85/code-guardian/internal/openai"
 	"github.com/spf13/cobra"
@@ -21,32 +22,48 @@ var prReviewCmd = &cobra.Command{
 		repo := args[1]
 		prNumber, err := strconv.Atoi(args[2])
 		if err != nil {
-			fmt.Print("Error: Invalid PR number")
+			color.Red("Error: Invalid PR number")
 			return
 		}
 
 		pr, err := github.GetPullRequest(owner, repo, prNumber)
 		if err != nil {
-			fmt.Printf("Error getting PR: %s\n", err)
+			color.Red("Error getting PR: %s\n", err)
 			return
 		}
+
+		color.Cyan("PR %d - %s\n", prNumber, pr.GetTitle())
+		color.Green("Author: %s\n", pr.GetUser().GetLogin())
+		color.Yellow("Created at: %s\n", pr.GetCreatedAt())
+		color.Blue("Link: %s\n", pr.GetHTMLURL())
+
+		files, err := github.GetPullRequestFiles(owner, repo, prNumber)
+		if err != nil {
+			color.Red("Error getting PR files: %s\n", err)
+			return
+		}
+
+		color.Magenta("Files changed: %d\n", len(files))
+		for _, file := range files {
+			fmt.Println("  -", file)
+		}
+
 		prDiff, err := github.GetPullRequestDiff(owner, repo, prNumber)
 		if err != nil {
-			fmt.Printf("Error getting PR diff: %s\n", err)
+			color.Red("Error getting PR diff: %s\n", err)
+			return
 		}
 
+		color.Magenta("Code changes")
+		fmt.Println(len(prDiff))
+
+		color.Blue("Sending for AI analysis")
 		aiFeedback, err := openai.AnalyzePRWithAI(prDiff)
 		if err != nil {
-			fmt.Printf("Error analyzing PR: %s\n", err)
+			color.Red("Error analyzing PR: %s\n", err)
+			return
 		}
-
-		fmt.Printf("PR %d - %s\n", prNumber, pr.GetTitle())
-		fmt.Printf("Author: %s\n", pr.GetUser().GetLogin())
-		fmt.Printf("Created at: %s\n", pr.GetCreatedAt())
-		fmt.Printf("Link: %s\n", pr.GetHTMLURL())
-		fmt.Println("Code changes")
-		fmt.Println(len(prDiff))
-		fmt.Println("AI feedback:")
+		color.Green("AI feedback:")
 		fmt.Println(aiFeedback)
 	},
 }

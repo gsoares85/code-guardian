@@ -1,7 +1,7 @@
 ## 🔹 General CLI Improvements
 
 * [x] Improve CLI output with colors (fatih/color) 🎨
-* [] Create a --output flag to save analyses in .md files
+* [x] Create a --output flag to save analyses in .md files
 * [] Create a repo-review command to analyze an entire repository
 * [] Create a commit-review command to analyze individual commits
 * [] Create a branch-review command to review an entire branch

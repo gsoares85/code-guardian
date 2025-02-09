@@ -1,4 +1,4 @@
-package github
+package github_internal
 
 import (
 	"context"

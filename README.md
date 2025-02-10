@@ -3,6 +3,16 @@
 * [x] Improve CLI output with colors (fatih/color) 🎨
 * [x] Create a --output flag to save analyses in .md files
 * [] Create a repo-review command to analyze an entire repository
+  * [] Allow filtering by file type? (--extensions=.go,.js)
+  * [] Implement parallel processing for faster analysis?
+  * [] Integrate repository history analysis? (git blame)
+  * [x] Use all files to train the AI, for code review and also for giving a general repository summary and description
+  * [] Optimize large repositories? (Chunking source code before sending to AI)
+  * [] Implement --skip-tests flag? (Exclude test files from AI training)
+  * [] Parallelize file fetching? (Speed up repository scanning)
+* [] Run tests with coverage reports? (go test -cover)
+* [] Integrate GitHub Actions for CI/CD testing?
+* [] Add benchmark tests for performance? (go test -bench)
 * [] Create a commit-review command to analyze individual commits
 * [] Create a branch-review command to review an entire branch
 * [] Add support for multiple programming languages
@@ -12,7 +22,6 @@
 * [] Implement support for third-party plugins
 * [] Create an improved help command with examples
 * [] Create a --verbose mode to display detailed logs
-* [] Create a web version of the tool with Next.js
 * [] Add support to run the CLI inside Docker
 * [] Create an offline mode that works without OpenAI
 * [] Improve error handling and exception support

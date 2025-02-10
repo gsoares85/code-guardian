@@ -2,8 +2,7 @@ package cmd
 
 import (
 	"github.com/google/go-github/v49/github"
-	"github.com/gsoares85/code-guardian/internal/github_internal"
-	"github.com/gsoares85/code-guardian/internal/openai"
+	"github.com/gsoares85/code-guardian/mocks"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
@@ -15,10 +14,10 @@ func TestGenerateMarkdownReport(t *testing.T) {
 	prTitle := "Fix memory leak"
 	prOwner := "testUser"
 	prNumber := 23
-	pr, err := github_internal.MockGetPullRequest(prOwner, prTitle, prNumber)
-	files, err := github_internal.MockGetPullRequestFiles(prOwner, prTitle, prNumber)
-	prDiff, err := github_internal.MockGetPullRequestDiff(prOwner, prTitle, prNumber)
-	aiFeedback, err := openai.MockAnalyzePRWithAI(prDiff)
+	pr, err := mocks.MockGetPullRequest(prOwner, prTitle, prNumber)
+	files, err := mocks.MockGetPullRequestFiles(prOwner, prTitle, prNumber)
+	prDiff, err := mocks.MockGetPullRequestDiff(prOwner, prTitle, prNumber)
+	aiFeedback, err := mocks.MockAnalyzePRWithAI(prDiff)
 
 	report := generateMarkdownReport(pr, files, prDiff, aiFeedback)
 
@@ -49,16 +48,16 @@ func TestSaveAnalysisToFile(t *testing.T) {
 func TestAnalyzePullRequest(t *testing.T) {
 	// Use local variables in the test function to "mock" external functionality.
 	mockGetPullRequest := func(owner, title string, number int) (*github.PullRequest, error) {
-		return github_internal.MockGetPullRequest(owner, title, number)
+		return mocks.MockGetPullRequest(owner, title, number)
 	}
 	mockGetPullRequestFiles := func(owner, title string, number int) ([]string, error) {
-		return github_internal.MockGetPullRequestFiles(owner, title, number)
+		return mocks.MockGetPullRequestFiles(owner, title, number)
 	}
 	mockGetPullRequestDiff := func(owner, title string, number int) (string, error) {
-		return github_internal.MockGetPullRequestDiff(owner, title, number)
+		return mocks.MockGetPullRequestDiff(owner, title, number)
 	}
 	mockAnalyzePRWithAI := func(prDiff string) (string, error) {
-		return openai.MockAnalyzePRWithAI(prDiff)
+		return mocks.MockAnalyzePRWithAI(prDiff)
 	}
 
 	// Use the mocks for testing by calling them explicitly.

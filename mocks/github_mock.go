@@ -1,8 +1,7 @@
-package github_internal
+package mocks
 
 import "github.com/google/go-github/v49/github"
 
-// Mock function to simulate fetching a PR
 func MockGetPullRequest(owner string, repo string, prNumber int) (*github.PullRequest, error) {
 	return &github.PullRequest{
 		Number:  github.Int(prNumber),
@@ -12,12 +11,10 @@ func MockGetPullRequest(owner string, repo string, prNumber int) (*github.PullRe
 	}, nil
 }
 
-// Mock function to simulate fetching changed files
 func MockGetPullRequestFiles(_ string, _ string, _ int) ([]string, error) {
 	return []string{"src/main.c", "include/utils.h"}, nil
 }
 
-// Mock function to simulate fetching PR diff
 func MockGetPullRequestDiff(_ string, _ string, _ int) (string, error) {
 	return `@@ -23,6 +23,7 @@
  void fixMemory() {
@@ -25,4 +22,27 @@ func MockGetPullRequestDiff(_ string, _ string, _ int) (string, error) {
      ptr[0] = 1;
 +    free(ptr);
  }`, nil
+}
+
+func MockGetRepositoryFilesRecursive(owner, repo string) ([]string, error) {
+	return []string{
+		"src/main.go",
+		"src/utils/helper.go",
+		"config/config.yaml",
+		"README.md",
+	}, nil
+}
+
+func MockGetFileContent(owner, repo, path string) (string, error) {
+	if path == "src/main.go" {
+		return `package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, world!")
+}`, nil
+	}
+
+	return "", nil
 }

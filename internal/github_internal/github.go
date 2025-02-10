@@ -57,3 +57,52 @@ func GetPullRequestFiles(owner string, repo string, prNumber int) ([]string, err
 	}
 	return fileNames, nil
 }
+
+func GetRepositoryFilesRecursive(owner, repo string) ([]string, error) {
+	client := NewGithubClient()
+	var files []string
+
+	err := fetchFilesRecursive(client, owner, repo, "", &files)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching repository files: %w", err)
+	}
+
+	return files, nil
+}
+
+func fetchFilesRecursive(client *github.Client, owner, repo, path string, files *[]string) error {
+	contents, dirContents, _, err := client.Repositories.GetContents(context.Background(), owner, repo, path, nil)
+	if err != nil {
+		return err
+	}
+
+	if contents != nil {
+		*files = append(*files, contents.GetPath())
+		return nil
+	}
+
+	for _, item := range dirContents {
+		if item.GetType() == "file" {
+			*files = append(*files, item.GetPath())
+		} else if item.GetType() == "dir" {
+			fetchFilesRecursive(client, owner, repo, item.GetPath(), files)
+		}
+	}
+
+	return nil
+}
+
+func GetFileContent(owner, repo, path string) (string, error) {
+	client := NewGithubClient()
+	fileContent, _, _, err := client.Repositories.GetContents(context.Background(), owner, repo, path, nil)
+	if err != nil {
+		return "", fmt.Errorf("error fetching file content: %w", err)
+	}
+
+	content, err := fileContent.GetContent()
+	if err != nil {
+		return "", fmt.Errorf("error decoding file content: %w", err)
+	}
+
+	return content, nil
+}
